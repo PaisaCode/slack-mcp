@@ -3,7 +3,7 @@ mod tools;
 mod types;
 
 use anyhow::Result;
-use rmcp::{transport::stdio, ServiceExt};
+use rmcp::ServiceExt;
 use tracing_subscriber::EnvFilter;
 
 use crate::slack_client::SlackClient;
@@ -26,10 +26,34 @@ async fn main() -> Result<()> {
         .filter(|s| !s.is_empty());
 
     let server = SlackTools::new(client, default_channel);
-    let service = server.serve(stdio()).await?;
 
-    tracing::info!("slack-mcp server running");
-    service.waiting().await?;
+    let transport = std::env::var("TRANSPORT").unwrap_or_else(|_| "stdio".to_string());
+
+    match transport.as_str() {
+        "stdio" => {
+            let service = server.serve(rmcp::transport::stdio()).await?;
+            tracing::info!("slack-mcp server running (stdio)");
+            service.waiting().await?;
+        }
+        "sse" => {
+            let host = std::env::var("SSE_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+            let port = std::env::var("SSE_PORT").unwrap_or_else(|_| "8080".to_string());
+            let addr: std::net::SocketAddr = format!("{}:{}", host, port).parse()?;
+
+            tracing::info!("slack-mcp SSE server listening on {}", addr);
+
+            let ct = rmcp::transport::sse_server::SseServer::serve(addr)
+                .await?
+                .with_service(move || server.clone());
+
+            tokio::signal::ctrl_c().await?;
+            tracing::info!("Shutting down SSE server");
+            ct.cancel();
+        }
+        other => {
+            anyhow::bail!("Unknown TRANSPORT: '{}'. Use 'stdio' or 'sse'.", other);
+        }
+    }
 
     Ok(())
 }

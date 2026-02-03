@@ -11,8 +11,9 @@ pub struct SlackClient {
 
 impl SlackClient {
     pub fn from_env() -> Result<Self> {
-        let token = std::env::var("SLACK_BOT_TOKEN")
-            .map_err(|_| anyhow!("SLACK_BOT_TOKEN environment variable is not set"))?;
+        let token = std::env::var("SLACK_TOKEN")
+            .or_else(|_| std::env::var("SLACK_BOT_TOKEN"))
+            .map_err(|_| anyhow!("SLACK_TOKEN environment variable is not set"))?;
         Ok(Self {
             client: Client::new(),
             token,

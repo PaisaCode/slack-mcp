@@ -227,6 +227,165 @@ impl SlackTools {
         let data = self.client.post("users.list", body).await.map_err(Self::err)?;
         Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
     }
+
+    // ─── Lists ──────────────────────────────────────────────
+
+    #[tool(description = "Create a new Slack list")]
+    async fn create_list(
+        &self,
+        Parameters(params): Parameters<CreateListParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let mut body = json!({
+            "name": params.name,
+            "description": params.description,
+        });
+        if let Some(todo_mode) = params.todo_mode {
+            body["todo_mode"] = json!(todo_mode);
+        }
+        if let Some(schema) = params.schema {
+            body["schema"] = schema;
+        }
+        let data = self.client.post("lists.create", body).await.map_err(Self::err)?;
+        Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
+    }
+
+    #[tool(description = "Update a Slack list's name, description, or todo mode")]
+    async fn update_list(
+        &self,
+        Parameters(params): Parameters<UpdateListParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let mut body = json!({ "id": params.id });
+        if let Some(name) = params.name {
+            body["name"] = json!(name);
+        }
+        if let Some(description) = params.description {
+            body["description"] = json!(description);
+        }
+        if let Some(todo_mode) = params.todo_mode {
+            body["todo_mode"] = json!(todo_mode);
+        }
+        let data = self.client.post("lists.update", body).await.map_err(Self::err)?;
+        Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
+    }
+
+    #[tool(description = "Add an item to a Slack list")]
+    async fn create_list_item(
+        &self,
+        Parameters(params): Parameters<CreateListItemParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let mut body = json!({ "list_id": params.list_id });
+        if let Some(initial_fields) = params.initial_fields {
+            body["initial_fields"] = initial_fields;
+        }
+        let data = self.client.post("lists.items.create", body).await.map_err(Self::err)?;
+        Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
+    }
+
+    #[tool(description = "List all items in a Slack list")]
+    async fn list_list_items(
+        &self,
+        Parameters(params): Parameters<ListListItemsParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let mut body = json!({ "list_id": params.list_id });
+        if let Some(limit) = params.limit {
+            body["limit"] = json!(limit);
+        }
+        if let Some(ref cursor) = params.cursor {
+            body["cursor"] = json!(cursor);
+        }
+        if let Some(archived) = params.archived {
+            body["archived"] = json!(archived);
+        }
+        let data = self.client.post("lists.items.list", body).await.map_err(Self::err)?;
+        Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
+    }
+
+    #[tool(description = "Get a specific item from a Slack list")]
+    async fn get_list_item(
+        &self,
+        Parameters(params): Parameters<GetListItemParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let body = json!({
+            "list_id": params.list_id,
+            "id": params.id,
+        });
+        let data = self.client.post("lists.items.info", body).await.map_err(Self::err)?;
+        Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
+    }
+
+    #[tool(description = "Update fields on a Slack list item")]
+    async fn update_list_item(
+        &self,
+        Parameters(params): Parameters<UpdateListItemParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let body = json!({
+            "list_id": params.list_id,
+            "cells": params.cells,
+        });
+        let data = self.client.post("lists.items.update", body).await.map_err(Self::err)?;
+        Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
+    }
+
+    #[tool(description = "Delete a single item from a Slack list")]
+    async fn delete_list_item(
+        &self,
+        Parameters(params): Parameters<DeleteListItemParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let body = json!({
+            "list_id": params.list_id,
+            "id": params.id,
+        });
+        let data = self.client.post("lists.items.delete", body).await.map_err(Self::err)?;
+        Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
+    }
+
+    #[tool(description = "Bulk delete multiple items from a Slack list")]
+    async fn delete_list_items(
+        &self,
+        Parameters(params): Parameters<DeleteListItemsParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let body = json!({
+            "list_id": params.list_id,
+            "ids": params.ids,
+        });
+        let data = self.client.post("lists.items.deleteMultiple", body).await.map_err(Self::err)?;
+        Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
+    }
+
+    #[tool(description = "Grant read, write, or owner access to a Slack list for users or channels")]
+    async fn set_list_access(
+        &self,
+        Parameters(params): Parameters<SetListAccessParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let mut body = json!({
+            "list_id": params.list_id,
+            "access_level": params.access_level,
+        });
+        if let Some(channel_ids) = params.channel_ids {
+            body["channel_ids"] = channel_ids;
+        }
+        if let Some(user_ids) = params.user_ids {
+            body["user_ids"] = user_ids;
+        }
+        let data = self.client.post("lists.access.set", body).await.map_err(Self::err)?;
+        Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
+    }
+
+    #[tool(description = "Revoke access to a Slack list from users or channels")]
+    async fn delete_list_access(
+        &self,
+        Parameters(params): Parameters<DeleteListAccessParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let mut body = json!({ "list_id": params.list_id });
+        if let Some(channel_ids) = params.channel_ids {
+            body["channel_ids"] = channel_ids;
+        }
+        if let Some(user_ids) = params.user_ids {
+            body["user_ids"] = user_ids;
+        }
+        let data = self.client.post("lists.access.delete", body).await.map_err(Self::err)?;
+        Ok(CallToolResult::success(vec![Content::text(data.to_string())]))
+    }
 }
 
 #[tool_handler]
@@ -237,7 +396,7 @@ impl ServerHandler for SlackTools {
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
-                "Slack integration tools. Requires SLACK_BOT_TOKEN env var. \
+                "Slack integration tools. Requires SLACK_TOKEN env var (also accepts SLACK_BOT_TOKEN). \
                  Optionally set SLACK_DEFAULT_CHANNEL for a default channel."
                     .to_string(),
             ),
